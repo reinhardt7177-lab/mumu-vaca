@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isTeacherOrAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role in ['teacher', 'admin'];
+    }
+
+    match /profiles/{uid} {
+      allow read: if isOwner(uid) || isTeacherOrAdmin();
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.role in ['student', 'teacher', 'admin'];
+      allow update: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.role == resource.data.role;
+      allow delete: if false;
+    }
+
+    match /student_invites/{inviteCode} {
+      allow read: if (resource.data.isActive == true)
+        || (isSignedIn() && resource.data.teacherUid == request.auth.uid);
+      allow create: if isTeacherOrAdmin()
+        && request.resource.data.teacherUid == request.auth.uid
+        && request.resource.data.isActive == true;
+      allow update, delete: if isTeacherOrAdmin()
+        && resource.data.teacherUid == request.auth.uid;
+    }
+
+    match /classes/{classId} {
+      allow read: if isSignedIn();
+      allow write: if isTeacherOrAdmin();
+    }
+
+    match /quests/{questId} {
+      allow read: if isSignedIn();
+      allow write: if isTeacherOrAdmin();
+    }
+
+    match /student_progress/{studentUid}/{docId} {
+      allow read, write: if isOwner(studentUid) || isTeacherOrAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
