@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, LogOut, Plus, RefreshCw, School, Sparkles, Trash2, Users, WandSparkles } from "lucide-react";
 import { getSessionUser, signOutSession } from "@/lib/auth/client";
 import { createTeacherClass, deleteTeacherClass, getTeacherClassBoard, listTeacherClasses } from "@/lib/firebase/classes";
@@ -90,6 +90,7 @@ export default function TeacherPage() {
   const [latestInviteCode, setLatestInviteCode] = useState("");
   const [latestInviteLink, setLatestInviteLink] = useState("");
   const [notice, setNotice] = useState("");
+  const boardSectionRef = useRef(null);
 
   const summaryText = useMemo(() => {
     const totalStudents = classes.reduce((acc, item) => acc + Number(item.studentCount ?? 0), 0);
@@ -247,6 +248,18 @@ export default function TeacherPage() {
     }
   }
 
+  function handleOpenBoard(classId) {
+    if (!classId) return;
+    setSelectedClassId(classId);
+    setBoard(null);
+    setBoardError("");
+    loadBoard(classId);
+
+    setTimeout(() => {
+      boardSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }
+
   async function copyText(value, label) {
     if (!toText(value)) return;
 
@@ -373,7 +386,7 @@ export default function TeacherPage() {
                   key={item.classId}
                   item={item}
                   selected={item.classId === selectedClassId}
-                  onOpen={setSelectedClassId}
+                  onOpen={handleOpenBoard}
                   onDelete={handleDeleteClass}
                 />
               ))}
@@ -381,7 +394,7 @@ export default function TeacherPage() {
           ) : null}
         </section>
 
-        <section className="rounded-fairy bg-white p-6 shadow-fairy">
+        <section ref={boardSectionRef} className="rounded-fairy bg-white p-6 shadow-fairy">
           <h2 className="mb-4 flex items-center gap-2 text-xl font-bold">
             <WandSparkles className="h-5 w-5" /> 학급 상황판
           </h2>
