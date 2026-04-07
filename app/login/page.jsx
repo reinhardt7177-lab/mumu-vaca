@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogIn, Sparkles, UserRoundPlus } from "lucide-react";
-import { getSessionUser, signInWithCredentials, signUpTeacher } from "@/lib/auth/client";
+import { getSessionUser, signInWithCredentials, signInTeacherWithGoogle, signUpTeacher } from "@/lib/auth/client";
 
 function toFriendlyAuthError(error, fallbackMessage) {
   const code = String(error?.code ?? "");
@@ -31,6 +31,18 @@ function toFriendlyAuthError(error, fallbackMessage) {
 
   if (code === "auth/too-many-requests") {
     return "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
+  }
+
+  if (code === "auth/popup-closed-by-user") {
+    return "구글 로그인 창이 닫혔어요. 다시 시도해 주세요.";
+  }
+
+  if (code === "auth/popup-blocked") {
+    return "브라우저가 팝업을 막았어요. 팝업 허용 후 다시 눌러 주세요.";
+  }
+
+  if (code === "auth/operation-not-allowed") {
+    return "Firebase에서 Google 로그인 방식이 아직 꺼져 있어요. Authentication > 로그인 방법 > Google을 켜 주세요.";
   }
 
   return message || fallbackMessage;
@@ -115,6 +127,22 @@ export default function LoginPage() {
     }
   }
 
+  async function handleTeacherGoogleSignIn() {
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await signInTeacherWithGoogle();
+      setMessage("구글 로그인 성공! 교사 지휘소로 이동할게요.");
+      router.replace("/teacher");
+    } catch (googleError) {
+      setError(toFriendlyAuthError(googleError, "구글 로그인에 실패했어요."));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleMoveToInvite() {
     const code = inviteCode.trim().toUpperCase();
     if (!code) {
@@ -156,6 +184,7 @@ export default function LoginPage() {
           <p className="text-sm font-extrabold text-[#6d4f2a]">입장하기</p>
           <h2 className="mt-1 text-2xl font-black text-[#345334]">선생님/학생 포털</h2>
           <p className="mt-2 text-sm font-semibold text-[#5b4e3d]">교사는 로그인, 학생은 초대코드로 이동해요.</p>
+          <p className="mt-1 text-xs text-[#6a5b43]/85">빠른 시작: 구글 계정으로 교사 로그인 가능</p>
 
           <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-[#f9efd7] p-1.5 ring-1 ring-[#dfc690]">
           <button
@@ -220,6 +249,16 @@ export default function LoginPage() {
           >
             <LogIn className="h-4 w-4" />
             {loading ? "처리 중..." : mode === "signup" ? "교사 회원가입" : "교사 로그인"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleTeacherGoogleSignIn}
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#1f1f1f] ring-1 ring-fairy-ink/20 disabled:opacity-60"
+          >
+            <Sparkles className="h-4 w-4" />
+            구글로 교사 로그인
           </button>
           </form>
 
