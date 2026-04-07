@@ -5,6 +5,37 @@ import { useRouter } from "next/navigation";
 import { LogIn, Sparkles, UserRoundPlus } from "lucide-react";
 import { getSessionUser, signInWithCredentials, signUpTeacher } from "@/lib/auth/client";
 
+function toFriendlyAuthError(error, fallbackMessage) {
+  const code = String(error?.code ?? "");
+  const message = String(error?.message ?? "");
+
+  if (code === "auth/configuration-not-found" || message.includes("CONFIGURATION_NOT_FOUND")) {
+    return "Firebase 인증 설정이 아직 비어 있어요. Firebase Console > Authentication > Sign-in method에서 이메일/비밀번호를 켜 주세요.";
+  }
+
+  if (code === "auth/email-already-in-use") {
+    return "이미 가입된 이메일이에요. 교사 로그인으로 들어가 주세요.";
+  }
+
+  if (code === "auth/invalid-email") {
+    return "이메일 형식을 확인해 주세요.";
+  }
+
+  if (code === "auth/weak-password") {
+    return "비밀번호를 6자 이상으로 설정해 주세요.";
+  }
+
+  if (code === "auth/invalid-credential" || code === "auth/invalid-login-credentials" || code === "auth/user-not-found") {
+    return "아이디 또는 비밀번호를 다시 확인해 주세요.";
+  }
+
+  if (code === "auth/too-many-requests") {
+    return "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
+  }
+
+  return message || fallbackMessage;
+}
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -56,7 +87,7 @@ export default function LoginPage() {
       setMessage("로그인 성공! 이동 중이에요.");
       router.replace(nextPath);
     } catch (signInError) {
-      setError(signInError.message ?? "로그인에 실패했어요.");
+      setError(toFriendlyAuthError(signInError, "로그인에 실패했어요."));
     } finally {
       setLoading(false);
     }
@@ -78,7 +109,7 @@ export default function LoginPage() {
       setMessage("교사 회원가입 완료! 바로 시작할게요.");
       router.replace("/teacher");
     } catch (signUpError) {
-      setError(signUpError.message ?? "회원가입에 실패했어요.");
+      setError(toFriendlyAuthError(signUpError, "회원가입에 실패했어요."));
     } finally {
       setLoading(false);
     }

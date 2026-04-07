@@ -5,18 +5,30 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function profileExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/profiles/$(request.auth.uid));
+    }
+
+    function myRole() {
+      return profileExists() ? get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role : "";
+    }
+
+    function isAdmin() {
+      return isSignedIn() && myRole() == "admin";
+    }
+
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
 
     function isTeacherOrAdmin() {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
-        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role in ['teacher', 'admin'];
+      return isSignedIn() && myRole() in ["teacher", "admin"];
     }
 
     match /profiles/{uid} {
-      allow read: if isOwner(uid) || isTeacherOrAdmin();
+      allow read: if isOwner(uid)
+        || isAdmin()
+        || (isTeacherOrAdmin() && resource.data.role == "student" && resource.data.teacherUid == request.auth.uid);
       allow create: if isOwner(uid)
         && request.resource.data.uid == uid
         && request.resource.data.role in ['student', 'teacher', 'admin'];
@@ -28,17 +40,20 @@ service cloud.firestore {
 
     match /student_invites/{inviteCode} {
       allow read: if (resource.data.isActive == true)
-        || (isSignedIn() && resource.data.teacherUid == request.auth.uid);
+        || (isSignedIn() && (resource.data.teacherUid == request.auth.uid || isAdmin()));
       allow create: if isTeacherOrAdmin()
         && request.resource.data.teacherUid == request.auth.uid
         && request.resource.data.isActive == true;
-      allow update, delete: if isTeacherOrAdmin()
-        && resource.data.teacherUid == request.auth.uid;
+      allow update, delete: if isSignedIn()
+        && (resource.data.teacherUid == request.auth.uid || isAdmin());
     }
 
     match /classes/{classId} {
-      allow read: if isSignedIn();
-      allow write: if isTeacherOrAdmin();
+      allow read: if isSignedIn() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow create: if isTeacherOrAdmin()
+        && request.resource.data.teacherUid == request.auth.uid;
+      allow update, delete: if isSignedIn()
+        && (resource.data.teacherUid == request.auth.uid || isAdmin());
     }
 
     match /quests/{questId} {

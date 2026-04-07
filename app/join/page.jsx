@@ -5,6 +5,33 @@ import { useRouter } from "next/navigation";
 import { getStudentInvite } from "@/lib/firebase/invites";
 import { signUpStudentWithInvite } from "@/lib/auth/client";
 
+function toFriendlyAuthError(error, fallbackMessage) {
+  const code = String(error?.code ?? "");
+  const message = String(error?.message ?? "");
+
+  if (code === "auth/configuration-not-found" || message.includes("CONFIGURATION_NOT_FOUND")) {
+    return "Firebase 인증 설정이 아직 비어 있어요. 선생님에게 Firebase Authentication(이메일/비밀번호) 활성화를 요청해 주세요.";
+  }
+
+  if (code === "auth/email-already-in-use") {
+    return "이미 사용 중인 학생 아이디(이메일)예요. 다른 아이디를 써 주세요.";
+  }
+
+  if (code === "auth/invalid-email") {
+    return "학생 아이디 형식을 다시 확인해 주세요.";
+  }
+
+  if (code === "auth/weak-password") {
+    return "비밀번호를 6자 이상으로 설정해 주세요.";
+  }
+
+  if (code === "auth/too-many-requests") {
+    return "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
+  }
+
+  return message || fallbackMessage;
+}
+
 export default function JoinPage() {
   const router = useRouter();
 
@@ -81,7 +108,7 @@ export default function JoinPage() {
       setMessage("Student account created. Moving to your mission page...");
       router.replace(`/student?grade=${grade}`);
     } catch (joinError) {
-      setError(joinError.message ?? "Failed to create student account.");
+      setError(toFriendlyAuthError(joinError, "Failed to create student account."));
     } finally {
       setLoading(false);
     }
@@ -106,7 +133,7 @@ export default function JoinPage() {
         {checkingInvite ? <p className="mt-3 text-sm text-fairy-ink/70">Checking invite...</p> : null}
         {invite ? (
           <p className="mt-3 rounded-xl bg-fairy-mint p-3 text-sm">
-            Class: {invite.classCode} / Grade: {invite.grade}
+            Class: {invite.className || invite.classCode} ({invite.classCode}) / Grade: {invite.grade}
           </p>
         ) : null}
 
