@@ -34,7 +34,21 @@ service cloud.firestore {
         && request.resource.data.role in ['student', 'teacher', 'admin'];
       allow update: if isOwner(uid)
         && request.resource.data.uid == uid
-        && request.resource.data.role == resource.data.role;
+        && (
+          request.resource.data.role == resource.data.role
+          || (
+            resource.data.role == "student"
+            && request.resource.data.role == "teacher"
+            && (resource.data.classId == null || resource.data.classId == "")
+            && (resource.data.classCode == null || resource.data.classCode == "")
+            && (resource.data.teacherUid == null || resource.data.teacherUid == "")
+            && (resource.data.inviteCode == null || resource.data.inviteCode == "")
+            && (request.resource.data.classId == null || request.resource.data.classId == "")
+            && (request.resource.data.classCode == null || request.resource.data.classCode == "")
+            && (request.resource.data.teacherUid == null || request.resource.data.teacherUid == "")
+            && (request.resource.data.inviteCode == null || request.resource.data.inviteCode == "")
+          )
+        );
       allow delete: if false;
     }
 
