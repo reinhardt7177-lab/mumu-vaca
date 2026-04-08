@@ -6,6 +6,7 @@ import { getSessionUser, signOutSession } from "@/lib/auth/client";
 import { createTeacherClass, deleteTeacherClass, getTeacherClassBoard, listTeacherClasses } from "@/lib/firebase/classes";
 import { createStudentInvite } from "@/lib/firebase/invites";
 import { RequireAuth } from "@/components/auth/require-auth";
+import { VacationPlanBuilder } from "@/components/teacher/vacation-plan-builder";
 
 function toText(value) {
   return String(value ?? "").trim();
@@ -510,6 +511,11 @@ export default function TeacherPage() {
             </div>
           ) : null}
         </section>
+
+        <VacationPlanBuilder
+          selectedClassInfo={board?.classInfo ?? null}
+          teacherEmail={sessionUser?.email ?? ""}
+        />
       </main>
     </RequireAuth>
   );
