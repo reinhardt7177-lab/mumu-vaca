@@ -60,6 +60,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [nextPath, setNextPath] = useState("/");
+  const targetPath = nextPath && nextPath !== "/" ? nextPath : "/teacher";
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -75,7 +76,7 @@ export default function LoginPage() {
       try {
         const user = await getSessionUser();
         if (mounted && user) {
-          router.replace(nextPath);
+          router.replace(targetPath);
         }
       } catch {
         // ignore
@@ -86,7 +87,7 @@ export default function LoginPage() {
     return () => {
       mounted = false;
     };
-  }, [nextPath, router]);
+  }, [targetPath, router]);
 
   async function handleTeacherSignIn(event) {
     event.preventDefault();
@@ -97,7 +98,7 @@ export default function LoginPage() {
     try {
       await signInWithCredentials({ loginId, password });
       setMessage("로그인 성공! 이동 중이에요.");
-      router.replace(nextPath);
+      router.replace(targetPath);
     } catch (signInError) {
       setError(toFriendlyAuthError(signInError, "로그인에 실패했어요."));
     } finally {
@@ -119,7 +120,7 @@ export default function LoginPage() {
       });
 
       setMessage("교사 회원가입 완료! 바로 시작할게요.");
-      router.replace("/teacher");
+      router.replace(targetPath);
     } catch (signUpError) {
       setError(toFriendlyAuthError(signUpError, "회원가입에 실패했어요."));
     } finally {
@@ -135,7 +136,7 @@ export default function LoginPage() {
     try {
       await signInTeacherWithGoogle();
       setMessage("구글 로그인 성공! 교사 지휘소로 이동할게요.");
-      router.replace("/teacher");
+      router.replace(targetPath);
     } catch (googleError) {
       setError(toFriendlyAuthError(googleError, "구글 로그인에 실패했어요."));
     } finally {
