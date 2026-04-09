@@ -164,25 +164,25 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-gradient-to-r from-[#1b2a22]/45 via-[#1b2a22]/20 to-[#1b2a22]/50" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#20342a]/45 via-transparent to-transparent" />
 
-      <section className="relative mx-auto flex min-h-screen w-full max-w-2xl items-center justify-center px-5 py-8 sm:px-8 sm:py-10">
-        <article className="w-full rounded-[2rem] border border-[#f5e7c8] bg-[#fff8e8]/95 p-5 shadow-[0_16px_40px_rgba(36,33,24,0.3)] sm:p-6">
+      <section className="relative mx-auto flex min-h-screen w-full max-w-lg items-center justify-center px-4 py-7 sm:px-6 sm:py-9">
+        <article className="w-full rounded-[1.55rem] border border-white/55 bg-[linear-gradient(140deg,rgba(255,255,255,0.45),rgba(255,255,255,0.22))] p-4 shadow-[0_16px_40px_rgba(20,28,22,0.35)] backdrop-blur-xl sm:p-5">
           <p className="text-sm font-extrabold text-[#6d4f2a]">입장하기</p>
           <h2 className="mt-1 text-2xl font-black text-[#345334]">선생님/학생 포털</h2>
           <p className="mt-2 text-sm font-semibold text-[#5b4e3d]">교사는 로그인, 학생은 초대코드로 이동해요.</p>
           <p className="mt-1 text-xs text-[#6a5b43]/85">빠른 시작: 구글 계정으로 교사 로그인 가능</p>
 
-          <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-[#f9efd7] p-1.5 ring-1 ring-[#dfc690]">
+          <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-white/30 p-1.5 ring-1 ring-white/45">
           <button
             type="button"
             onClick={() => setMode("signin")}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold ${mode === "signin" ? "bg-white text-[#345334] shadow" : "text-[#6a5b43]"}`}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold ${mode === "signin" ? "bg-white/80 text-[#345334] shadow" : "text-[#6a5b43]"}`}
           >
             교사 로그인
           </button>
           <button
             type="button"
             onClick={() => setMode("signup")}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold ${mode === "signup" ? "bg-white text-[#345334] shadow" : "text-[#6a5b43]"}`}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold ${mode === "signup" ? "bg-white/80 text-[#345334] shadow" : "text-[#6a5b43]"}`}
           >
             교사 회원가입
           </button>
@@ -197,7 +197,7 @@ export default function LoginPage() {
                 onChange={(event) => setTeacherName(event.target.value)}
                 type="text"
                 required
-                className="rounded-xl border border-[#9f8b69] bg-white/90 px-4 py-2 outline-none ring-[#9dd3ff] focus:ring"
+                className="rounded-xl border border-white/55 bg-white/72 px-4 py-2 outline-none ring-[#9dd3ff] focus:ring"
                 placeholder="예: 3학년 2반 김선생님"
               />
             </label>
@@ -210,7 +210,7 @@ export default function LoginPage() {
               onChange={(event) => setLoginId(event.target.value)}
               type="text"
               required
-              className="rounded-xl border border-[#9f8b69] bg-white/90 px-4 py-2 outline-none ring-[#9dd3ff] focus:ring"
+              className="rounded-xl border border-white/55 bg-white/72 px-4 py-2 outline-none ring-[#9dd3ff] focus:ring"
               placeholder="teacher1 또는 teacher@example.com"
             />
           </label>
@@ -222,7 +222,7 @@ export default function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               type="password"
               required
-              className="rounded-xl border border-[#9f8b69] bg-white/90 px-4 py-2 outline-none ring-[#9dd3ff] focus:ring"
+              className="rounded-xl border border-white/55 bg-white/72 px-4 py-2 outline-none ring-[#9dd3ff] focus:ring"
               placeholder="6자 이상"
             />
           </label>
@@ -240,14 +240,14 @@ export default function LoginPage() {
             type="button"
             onClick={handleTeacherGoogleSignIn}
             disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#1f1f1f] ring-1 ring-fairy-ink/20 disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-white/78 px-5 py-2.5 text-sm font-semibold text-[#1f1f1f] ring-1 ring-white/60 disabled:opacity-60"
           >
             <Sparkles className="h-4 w-4" />
             구글로 교사 로그인
           </button>
           </form>
 
-          <div className="mt-7 rounded-2xl border border-[#bfd8f8] bg-[#e7f2ff]/90 p-4">
+          <div className="mt-7 rounded-2xl border border-white/55 bg-[rgba(231,242,255,0.55)] p-4 backdrop-blur-sm">
             <p className="inline-flex items-center gap-2 text-sm font-bold text-[#31557c]">
               <UserRoundPlus className="h-4 w-4" />
               학생 입장
@@ -257,7 +257,7 @@ export default function LoginPage() {
             <input
               value={inviteCode}
               onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-              className="flex-1 rounded-xl border border-[#88a8cf] bg-white/95 px-4 py-2 text-sm outline-none ring-[#9dd3ff] focus:ring"
+              className="flex-1 rounded-xl border border-white/65 bg-white/75 px-4 py-2 text-sm outline-none ring-[#9dd3ff] focus:ring"
               placeholder="예: AB12CD34EF"
             />
             <button
