@@ -29,6 +29,14 @@ function toFriendlyAuthError(error, fallbackMessage) {
     return "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
   }
 
+  if (message.includes("Invalid invite code")) {
+    return "초대코드가 올바르지 않거나 만료되었어요. 선생님께 새 링크를 받아 주세요.";
+  }
+
+  if (message.includes("ID and password are required")) {
+    return "학생 아이디와 비밀번호를 모두 입력해 주세요.";
+  }
+
   return message || fallbackMessage;
 }
 
@@ -66,7 +74,7 @@ export default function JoinPage() {
 
         if (!data || !data.isActive) {
           setInvite(null);
-          setError("Invalid invite code. Ask your teacher for a new link.");
+          setError("초대코드가 올바르지 않거나 만료되었어요. 선생님께 새 링크를 받아 주세요.");
           return;
         }
 
@@ -77,7 +85,7 @@ export default function JoinPage() {
         }
       } catch {
         if (mounted) {
-          setError("Failed to load invite information.");
+          setError("초대 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
         }
       } finally {
         if (mounted) {
@@ -105,10 +113,10 @@ export default function JoinPage() {
         password,
         fullName
       });
-      setMessage("Student account created. Moving to your mission page...");
+      setMessage("학생 계정이 만들어졌어요. 미션 화면으로 이동할게요.");
       router.replace(`/student?grade=${grade}`);
     } catch (joinError) {
-      setError(toFriendlyAuthError(joinError, "Failed to create student account."));
+      setError(toFriendlyAuthError(joinError, "학생 계정을 만들지 못했어요. 다시 시도해 주세요."));
     } finally {
       setLoading(false);
     }
@@ -117,11 +125,13 @@ export default function JoinPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 py-10">
       <section className="rounded-fairy bg-white/90 p-8 shadow-fairy backdrop-blur">
-        <h1 className="text-3xl font-bold">Student Link Signup</h1>
-        <p className="mt-2 text-sm text-fairy-ink/80">Open your teacher invite link, then set your own student ID and password.</p>
+        <h1 className="text-3xl font-bold">학생 링크 가입하기</h1>
+        <p className="mt-2 text-sm text-fairy-ink/80">
+          선생님이 준 초대링크로 들어왔다면, 이름과 아이디/비밀번호를 정하고 우리 반 방학 모험에 합류해요.
+        </p>
 
         <label className="mt-5 grid gap-1 text-sm font-semibold">
-          Invite Code
+          초대 코드
           <input
             value={inviteCode}
             onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
@@ -130,56 +140,56 @@ export default function JoinPage() {
           />
         </label>
 
-        {checkingInvite ? <p className="mt-3 text-sm text-fairy-ink/70">Checking invite...</p> : null}
+        {checkingInvite ? <p className="mt-3 text-sm text-fairy-ink/70">초대코드 확인 중...</p> : null}
         {invite ? (
           <p className="mt-3 rounded-xl bg-fairy-mint p-3 text-sm">
-            Class: {invite.className || invite.classCode} ({invite.classCode}) / Grade: {invite.grade}
+            학급: {invite.className || invite.classCode} ({invite.classCode}) / 학년: {invite.grade}학년
           </p>
         ) : null}
 
         <form onSubmit={handleSubmit} className="mt-5 grid gap-3">
           <label className="grid gap-1 text-sm font-semibold">
-            Student Name
+            학생 이름
             <input
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
               type="text"
               required
               className="rounded-xl border border-fairy-ink/20 px-4 py-2 outline-none ring-fairy-sky focus:ring"
-              placeholder="e.g. Hong Gildong"
+              placeholder="예: 홍길동"
             />
           </label>
 
           <label className="grid gap-1 text-sm font-semibold">
-            Student ID
+            학생 아이디
             <input
               value={loginId}
               onChange={(event) => setLoginId(event.target.value)}
               type="text"
               required
               className="rounded-xl border border-fairy-ink/20 px-4 py-2 outline-none ring-fairy-sky focus:ring"
-              placeholder="e.g. gildong3"
+              placeholder="예: gildong3"
             />
           </label>
 
           <label className="grid gap-1 text-sm font-semibold">
-            Password
+            비밀번호
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               type="password"
               required
               className="rounded-xl border border-fairy-ink/20 px-4 py-2 outline-none ring-fairy-sky focus:ring"
-              placeholder="6+ chars"
+              placeholder="6자 이상"
             />
           </label>
 
           <button
             type="submit"
             disabled={loading || !invite}
-            className="mt-1 rounded-full bg-fairy-ink px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            className="mt-1 rounded-full border border-[#32563a] bg-[#32563a] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2b4932] disabled:cursor-not-allowed disabled:border-[#9bb2a1] disabled:bg-[#9bb2a1]"
           >
-            {loading ? "Creating account..." : "Create student account"}
+            {loading ? "가입 중..." : "학생 계정 만들기"}
           </button>
         </form>
 

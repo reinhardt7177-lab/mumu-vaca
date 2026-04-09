@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FilePenLine, Palette, Printer, RefreshCw, Sparkles } from "lucide-react";
+import { FilePenLine, FolderOpen, Palette, Printer, RefreshCw, Save, Sparkles, Trash2 } from "lucide-react";
+import {
+  createClassVacationPlan,
+  deleteClassVacationPlan,
+  listClassVacationPlans,
+  updateClassVacationPlan
+} from "@/lib/firebase/classes";
 
 const DESIGN_THEMES = {
   fairyForest: {
@@ -38,13 +44,8 @@ const TEMPLATE_HINTS = {
   rewardRule: "예: 계획 실천 5일 달성 시 주말에 가족 보드게임"
 };
 
-function formatDate(value) {
-  if (!value) return "미정";
-  return value;
-}
-
-export function VacationPlanBuilder({ selectedClassInfo, teacherEmail }) {
-  const [form, setForm] = useState({
+function makeEmptyForm() {
+  return {
     schoolName: "",
     grade: "",
     className: "",
@@ -62,10 +63,53 @@ export function VacationPlanBuilder({ selectedClassInfo, teacherEmail }) {
     familyProject: "",
     rewardRule: "",
     feedbackMemo: ""
-  });
+  };
+}
 
+function formatDate(value) {
+  if (!value) return "미정";
+  return value;
+}
+
+function formatDateTimeMs(ms) {
+  if (!ms) return "-";
+  return new Date(ms).toLocaleString("ko-KR", {
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function toPlanError(error, fallbackMessage) {
+  const code = String(error?.code ?? "");
+  const message = String(error?.message ?? "");
+
+  if (code === "permission-denied") {
+    return "권한이 없어요. 교사 계정으로 로그인했는지 확인해 주세요.";
+  }
+
+  if (code === "unavailable") {
+    return "네트워크 연결이 잠시 불안정해요. 잠시 후 다시 시도해 주세요.";
+  }
+
+  return message || fallbackMessage;
+}
+
+export function VacationPlanBuilder({ selectedClassInfo, teacherEmail }) {
+  const [form, setForm] = useState(makeEmptyForm);
   const [theme, setTheme] = useState("fairyForest");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  const [savedPlans, setSavedPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [activePlanId, setActivePlanId] = useState("");
+  const [plansMessage, setPlansMessage] = useState("");
+  const [plansError, setPlansError] = useState("");
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  const selectedClassId = String(selectedClassInfo?.classId ?? "");
 
   useEffect(() => {
     if (!selectedClassInfo) return;
@@ -82,6 +126,35 @@ export function VacationPlanBuilder({ selectedClassInfo, teacherEmail }) {
     if (!teacherEmail) return;
     setForm((prev) => ({ ...prev, teacherName: prev.teacherName || String(teacherEmail).split("@")[0] }));
   }, [teacherEmail]);
+
+  async function loadPlans() {
+    if (!selectedClassId) {
+      setSavedPlans([]);
+      setActivePlanId("");
+      return;
+    }
+
+    setPlansLoading(true);
+    setPlansError("");
+
+    try {
+      const list = await listClassVacationPlans(selectedClassId);
+      setSavedPlans(list);
+      if (activePlanId && !list.some((item) => item.planId === activePlanId)) {
+        setActivePlanId("");
+      }
+    } catch (error) {
+      setPlansError(toPlanError(error, "저장된 방학계획서를 불러오지 못했어요."));
+    } finally {
+      setPlansLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!isEditorOpen) return;
+    loadPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditorOpen, selectedClassId]);
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -105,8 +178,12 @@ export function VacationPlanBuilder({ selectedClassInfo, teacherEmail }) {
   }
 
   function resetForm() {
+    setActivePlanId("");
+    setTheme("fairyForest");
     setForm((prev) => ({
       ...prev,
+      vacationStart: "",
+      vacationEnd: "",
       pledge: "",
       morningPlan: "",
       afternoonPlan: "",
@@ -123,6 +200,99 @@ export function VacationPlanBuilder({ selectedClassInfo, teacherEmail }) {
 
   function handlePrint() {
     window.print();
+  }
+
+  function buildPlanPayload() {
+    if (!selectedClassInfo?.classId) {
+      throw new Error("학급 상황판에서 학급을 먼저 선택해 주세요.");
+    }
+
+    const className = String(form.className || selectedClassInfo.className || "").trim();
+    const grade = Number(form.grade || selectedClassInfo.grade || 0) || 0;
+    const gradeLabel = grade ? `${grade}학년` : "학년";
+
+    return {
+      title: `${gradeLabel} ${className || "학급"} 방학 생활계획서`,
+      classId: selectedClassInfo.classId,
+      className: className || String(selectedClassInfo.className ?? ""),
+      classCode: String(selectedClassInfo.classCode ?? ""),
+      grade,
+      theme,
+      form: {
+        ...form,
+        className: className || String(selectedClassInfo.className ?? ""),
+        grade: String(form.grade || selectedClassInfo.grade || "")
+      }
+    };
+  }
+
+  async function handleSavePlan() {
+    setPlansMessage("");
+    setPlansError("");
+    setSaveLoading(true);
+
+    try {
+      const payload = buildPlanPayload();
+
+      if (activePlanId) {
+        await updateClassVacationPlan(selectedClassId, activePlanId, payload);
+        setPlansMessage("방학계획서를 수정 저장했어요.");
+      } else {
+        const created = await createClassVacationPlan(selectedClassId, payload);
+        setActivePlanId(created.planId);
+        setPlansMessage("방학계획서를 새로 저장했어요.");
+      }
+
+      await loadPlans();
+    } catch (error) {
+      setPlansError(toPlanError(error, "방학계획서 저장에 실패했어요."));
+    } finally {
+      setSaveLoading(false);
+    }
+  }
+
+  function applySavedPlan(item) {
+    setActivePlanId(item.planId);
+    setTheme(item.theme || "fairyForest");
+
+    const nextForm = {
+      ...makeEmptyForm(),
+      ...item.form
+    };
+
+    setForm((prev) => ({
+      ...prev,
+      ...nextForm,
+      className: nextForm.className || item.className || prev.className,
+      schoolName: nextForm.schoolName || prev.schoolName,
+      grade: String(nextForm.grade || item.grade || prev.grade || "")
+    }));
+
+    setPlansMessage("저장된 계획서를 불러왔어요. 수정 후 다시 저장할 수 있어요.");
+    setPlansError("");
+    setIsEditorOpen(true);
+  }
+
+  async function handleDeletePlan(planId) {
+    const target = savedPlans.find((item) => item.planId === planId);
+    const label = target?.title || "이 계획서";
+
+    const ok = window.confirm(`${label}를 삭제할까요?`);
+    if (!ok) return;
+
+    setPlansMessage("");
+    setPlansError("");
+
+    try {
+      await deleteClassVacationPlan(selectedClassId, planId);
+      if (activePlanId === planId) {
+        setActivePlanId("");
+      }
+      await loadPlans();
+      setPlansMessage("방학계획서를 삭제했어요.");
+    } catch (error) {
+      setPlansError(toPlanError(error, "방학계획서 삭제에 실패했어요."));
+    }
   }
 
   const plan = useMemo(() => {
@@ -173,34 +343,42 @@ export function VacationPlanBuilder({ selectedClassInfo, teacherEmail }) {
           </button>
           {isEditorOpen ? (
             <>
-          <button
-            type="button"
-            onClick={fillExample}
-            className="inline-flex items-center gap-1 rounded-full bg-[#d9f3e4] px-4 py-2 text-sm font-semibold text-[#214a34]"
-          >
-            <Sparkles className="h-4 w-4" /> 예시 문구 자동 채우기
-          </button>
-          <button
-            type="button"
-            onClick={resetForm}
-            className="inline-flex items-center gap-1 rounded-full bg-[#f2f2f7] px-4 py-2 text-sm font-semibold text-fairy-ink"
-          >
-            <RefreshCw className="h-4 w-4" /> 작성 내용 초기화
-          </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1 rounded-full bg-[#32563a] px-4 py-2 text-sm font-semibold text-white"
-          >
-            <Printer className="h-4 w-4" /> 인쇄하기
-          </button>
+              <button
+                type="button"
+                onClick={fillExample}
+                className="inline-flex items-center gap-1 rounded-full bg-[#d9f3e4] px-4 py-2 text-sm font-semibold text-[#214a34]"
+              >
+                <Sparkles className="h-4 w-4" /> 예시 문구 자동 채우기
+              </button>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="inline-flex items-center gap-1 rounded-full bg-[#f2f2f7] px-4 py-2 text-sm font-semibold text-fairy-ink"
+              >
+                <RefreshCw className="h-4 w-4" /> 새 계획서 시작
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePlan}
+                disabled={saveLoading}
+                className="inline-flex items-center gap-1 rounded-full bg-[#32563a] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                <Save className="h-4 w-4" /> {saveLoading ? "저장 중..." : activePlanId ? "수정 저장" : "새로 저장"}
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex items-center gap-1 rounded-full bg-[#32563a] px-4 py-2 text-sm font-semibold text-white"
+              >
+                <Printer className="h-4 w-4" /> 인쇄하기
+              </button>
             </>
           ) : null}
         </div>
       </div>
 
       <p className="mb-5 text-sm text-fairy-ink/75">
-        칸에 내용을 입력하면 아래 방학계획서가 자동으로 완성돼요. 마지막에 디자인 테마를 바꿔서 원하는 형태로 인쇄할 수 있어요.
+        칸에 내용을 입력하면 아래 방학계획서가 자동으로 완성돼요. 저장해 두면 나중에 수정하거나 삭제할 수 있어요.
       </p>
 
       {!isEditorOpen ? (
@@ -208,148 +386,194 @@ export function VacationPlanBuilder({ selectedClassInfo, teacherEmail }) {
           방학계획서 작성 버튼을 누르면 입력 칸이 열리고, 작성 즉시 인쇄 가능한 계획서 미리보기가 생성됩니다.
         </p>
       ) : (
-      <>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <article className="rounded-2xl border border-fairy-ink/15 bg-fairy-cream p-4">
-          <h3 className="mb-3 text-sm font-bold text-fairy-ink">기본 정보</h3>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-              학교명
-              <input value={form.schoolName} onChange={(e) => updateField("schoolName", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 강진중앙초등학교" />
-            </label>
-            <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-              담임명
-              <input value={form.teacherName} onChange={(e) => updateField("teacherName", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 김다정" />
-            </label>
-            <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-              학년
-              <select value={form.grade} onChange={(e) => updateField("grade", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm">
-                <option value="">학년 선택</option>
-                {[1, 2, 3, 4, 5, 6].map((grade) => (
-                  <option key={grade} value={grade}>{grade}학년</option>
+        <>
+          {!selectedClassId ? (
+            <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">학급 상황판에서 학급을 먼저 선택하면 저장/수정/삭제가 가능해요.</p>
+          ) : null}
+
+          {plansMessage ? <p className="mb-4 rounded-xl bg-[#d9f3e4] p-3 text-sm text-[#214a34]">{plansMessage}</p> : null}
+          {plansError ? <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{plansError}</p> : null}
+
+          <article className="mb-4 rounded-2xl border border-fairy-ink/15 bg-fairy-cream p-4">
+            <h3 className="inline-flex items-center gap-2 text-sm font-bold text-fairy-ink">
+              <FolderOpen className="h-4 w-4" /> 저장된 방학계획서
+            </h3>
+
+            {plansLoading ? <p className="mt-3 text-sm text-fairy-ink/70">불러오는 중이에요...</p> : null}
+
+            {!plansLoading && savedPlans.length === 0 ? (
+              <p className="mt-3 rounded-xl border border-dashed border-fairy-ink/30 p-3 text-sm text-fairy-ink/70">아직 저장된 방학계획서가 없어요.</p>
+            ) : null}
+
+            {!plansLoading && savedPlans.length > 0 ? (
+              <ul className="mt-3 grid gap-2">
+                {savedPlans.map((item) => (
+                  <li key={item.planId} className={`rounded-xl border p-3 ${item.planId === activePlanId ? "border-[#32563a] bg-white" : "border-fairy-ink/15 bg-white/80"}`}>
+                    <p className="text-sm font-bold text-fairy-ink">{item.title || "제목 없는 계획서"}</p>
+                    <p className="text-xs text-fairy-ink/65">{item.classCode || "-"} · 수정 {formatDateTimeMs(item.updatedAtMs)}</p>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => applySavedPlan(item)}
+                        className="inline-flex items-center gap-1 rounded-full bg-[#32563a] px-3 py-1.5 text-xs font-semibold text-white"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" /> 불러오기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePlan(item.planId)}
+                        className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> 삭제
+                      </button>
+                    </div>
+                  </li>
                 ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-              반/학급명
-              <input value={form.className} onChange={(e) => updateField("className", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 4학년 3반" />
-            </label>
-            <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-              방학 시작일
-              <input type="date" value={form.vacationStart} onChange={(e) => updateField("vacationStart", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" />
-            </label>
-            <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-              방학 종료일
-              <input type="date" value={form.vacationEnd} onChange={(e) => updateField("vacationEnd", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" />
-            </label>
+              </ul>
+            ) : null}
+          </article>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <article className="rounded-2xl border border-fairy-ink/15 bg-fairy-cream p-4">
+              <h3 className="mb-3 text-sm font-bold text-fairy-ink">기본 정보</h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                  학교명
+                  <input value={form.schoolName} onChange={(e) => updateField("schoolName", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 강진중앙초등학교" />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                  담임명
+                  <input value={form.teacherName} onChange={(e) => updateField("teacherName", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 김다정" />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                  학년
+                  <select value={form.grade} onChange={(e) => updateField("grade", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm">
+                    <option value="">학년 선택</option>
+                    {[1, 2, 3, 4, 5, 6].map((grade) => (
+                      <option key={grade} value={grade}>{grade}학년</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                  반/학급명
+                  <input value={form.className} onChange={(e) => updateField("className", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 4학년 3반" />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                  방학 시작일
+                  <input type="date" value={form.vacationStart} onChange={(e) => updateField("vacationStart", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                  방학 종료일
+                  <input type="date" value={form.vacationEnd} onChange={(e) => updateField("vacationEnd", e.target.value)} className="rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" />
+                </label>
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-fairy-ink/15 bg-fairy-cream p-4">
+              <h3 className="mb-3 text-sm font-bold text-fairy-ink">계획 입력</h3>
+              <div className="grid gap-2">
+                {Object.entries(TEMPLATE_HINTS).map(([key, placeholder]) => (
+                  <label key={key} className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                    {key === "pledge" && "방학 다짐"}
+                    {key === "morningPlan" && "아침 계획"}
+                    {key === "afternoonPlan" && "오후 계획"}
+                    {key === "eveningPlan" && "저녁 계획"}
+                    {key === "weeklyMission" && "주간 미션"}
+                    {key === "safetyPromise" && "안전 약속"}
+                    {key === "familyProject" && "가족 프로젝트"}
+                    {key === "rewardRule" && "보상 규칙"}
+                    <textarea
+                      rows={2}
+                      value={form[key]}
+                      onChange={(event) => updateField(key, event.target.value)}
+                      className="resize-y rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm"
+                      placeholder={placeholder}
+                    />
+                  </label>
+                ))}
+
+                <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                  독서 목표
+                  <textarea rows={2} value={form.readingGoal} onChange={(event) => updateField("readingGoal", event.target.value)} className="resize-y rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 필독 도서 3권 + 자유 독서 2권" />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                  운동 목표
+                  <textarea rows={2} value={form.exerciseGoal} onChange={(event) => updateField("exerciseGoal", event.target.value)} className="resize-y rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 줄넘기 100회, 주 4회 걷기" />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
+                  교사/학부모 메모
+                  <textarea rows={2} value={form.feedbackMemo} onChange={(event) => updateField("feedbackMemo", event.target.value)} className="resize-y rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 주 1회 실천 여부 확인" />
+                </label>
+              </div>
+            </article>
           </div>
-        </article>
 
-        <article className="rounded-2xl border border-fairy-ink/15 bg-fairy-cream p-4">
-          <h3 className="mb-3 text-sm font-bold text-fairy-ink">계획 입력</h3>
-          <div className="grid gap-2">
-            {Object.entries(TEMPLATE_HINTS).map(([key, placeholder]) => (
-              <label key={key} className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-                {key === "pledge" && "방학 다짐"}
-                {key === "morningPlan" && "아침 계획"}
-                {key === "afternoonPlan" && "오후 계획"}
-                {key === "eveningPlan" && "저녁 계획"}
-                {key === "weeklyMission" && "주간 미션"}
-                {key === "safetyPromise" && "안전 약속"}
-                {key === "familyProject" && "가족 프로젝트"}
-                {key === "rewardRule" && "보상 규칙"}
-                <textarea
-                  rows={2}
-                  value={form[key]}
-                  onChange={(event) => updateField(key, event.target.value)}
-                  className="resize-y rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm"
-                  placeholder={placeholder}
-                />
-              </label>
-            ))}
-
-            <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-              독서 목표
-              <textarea rows={2} value={form.readingGoal} onChange={(event) => updateField("readingGoal", event.target.value)} className="resize-y rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 필독 도서 3권 + 자유 독서 2권" />
-            </label>
-            <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-              운동 목표
-              <textarea rows={2} value={form.exerciseGoal} onChange={(event) => updateField("exerciseGoal", event.target.value)} className="resize-y rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 줄넘기 100회, 주 4회 걷기" />
-            </label>
-            <label className="grid gap-1 text-xs font-semibold text-fairy-ink/85">
-              교사/학부모 메모
-              <textarea rows={2} value={form.feedbackMemo} onChange={(event) => updateField("feedbackMemo", event.target.value)} className="resize-y rounded-lg border border-fairy-ink/20 px-3 py-2 text-sm" placeholder="예: 주 1회 실천 여부 확인" />
-            </label>
-          </div>
-        </article>
-      </div>
-
-      <article className="mt-6 rounded-2xl border border-fairy-ink/15 bg-fairy-cream p-4">
-        <h3 className="inline-flex items-center gap-1 text-sm font-bold text-fairy-ink">
-          <Palette className="h-4 w-4" /> 디자인 선택
-        </h3>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {Object.entries(DESIGN_THEMES).map(([key, info]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTheme(key)}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold ${theme === key ? "bg-[#32563a] text-white" : "bg-white text-fairy-ink"}`}
-            >
-              {info.label}
-            </button>
-          ))}
-        </div>
-      </article>
-
-      <article className={`plan-print-root mt-6 rounded-2xl border p-6 shadow-sm ${activeTheme.wrapper}`}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${activeTheme.badge}`}>슬기로운 방학생활</p>
-            <h3 className={`mt-2 text-2xl font-black ${activeTheme.title}`}>{plan.title}</h3>
-            <p className="mt-1 text-sm text-fairy-ink/70">방학 기간: {plan.period}</p>
-          </div>
-          <div className={`rounded-xl border px-3 py-2 text-sm ${activeTheme.card}`}>
-            <p>학교: {plan.headerInfo.schoolName}</p>
-            <p>담임: {plan.headerInfo.teacherName}</p>
-            <p>학급: {plan.headerInfo.gradeClass}</p>
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-3 lg:grid-cols-2">
-          <section className={`rounded-xl border p-4 ${activeTheme.card}`}>
-            <h4 className="text-sm font-bold text-fairy-ink">방학 다짐</h4>
-            <p className="mt-2 whitespace-pre-line text-sm text-fairy-ink/90">{plan.pledge}</p>
-          </section>
-
-          <section className={`rounded-xl border p-4 ${activeTheme.card}`}>
-            <h4 className="text-sm font-bold text-fairy-ink">실천 체크리스트</h4>
-            <ul className="mt-2 space-y-2 text-sm text-fairy-ink/90">
-              {plan.checklist.map((item) => (
-                <li key={item} className="rounded-lg bg-white/80 p-2">[ ] {item}</li>
+          <article className="mt-6 rounded-2xl border border-fairy-ink/15 bg-fairy-cream p-4">
+            <h3 className="inline-flex items-center gap-1 text-sm font-bold text-fairy-ink">
+              <Palette className="h-4 w-4" /> 디자인 선택
+            </h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {Object.entries(DESIGN_THEMES).map(([key, info]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTheme(key)}
+                  className={`rounded-full px-4 py-1.5 text-xs font-semibold ${theme === key ? "bg-[#32563a] text-white" : "bg-white text-fairy-ink"}`}
+                >
+                  {info.label}
+                </button>
               ))}
-            </ul>
-          </section>
+            </div>
+          </article>
 
-          <section className={`rounded-xl border p-4 ${activeTheme.card}`}>
-            <h4 className="text-sm font-bold text-fairy-ink">독서/운동 목표</h4>
-            <p className="mt-2 text-sm text-fairy-ink/90">독서: {plan.readingGoal}</p>
-            <p className="mt-2 text-sm text-fairy-ink/90">운동: {plan.exerciseGoal}</p>
-          </section>
+          <article className={`plan-print-root mt-6 rounded-2xl border p-6 shadow-sm ${activeTheme.wrapper}`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${activeTheme.badge}`}>슬기로운 방학생활</p>
+                <h3 className={`mt-2 text-2xl font-black ${activeTheme.title}`}>{plan.title}</h3>
+                <p className="mt-1 text-sm text-fairy-ink/70">방학 기간: {plan.period}</p>
+              </div>
+              <div className={`rounded-xl border px-3 py-2 text-sm ${activeTheme.card}`}>
+                <p>학교: {plan.headerInfo.schoolName}</p>
+                <p>담임: {plan.headerInfo.teacherName}</p>
+                <p>학급: {plan.headerInfo.gradeClass}</p>
+              </div>
+            </div>
 
-          <section className={`rounded-xl border p-4 ${activeTheme.card}`}>
-            <h4 className="text-sm font-bold text-fairy-ink">가족 프로젝트/보상 규칙</h4>
-            <p className="mt-2 text-sm text-fairy-ink/90">프로젝트: {plan.familyProject}</p>
-            <p className="mt-2 text-sm text-fairy-ink/90">보상 규칙: {plan.rewardRule}</p>
-          </section>
-        </div>
+            <div className="mt-5 grid gap-3 lg:grid-cols-2">
+              <section className={`rounded-xl border p-4 ${activeTheme.card}`}>
+                <h4 className="text-sm font-bold text-fairy-ink">방학 다짐</h4>
+                <p className="mt-2 whitespace-pre-line text-sm text-fairy-ink/90">{plan.pledge}</p>
+              </section>
 
-        <section className={`mt-3 rounded-xl border p-4 ${activeTheme.card}`}>
-          <h4 className="text-sm font-bold text-fairy-ink">교사/학부모 메모</h4>
-          <p className="mt-2 whitespace-pre-line text-sm text-fairy-ink/90">{plan.feedbackMemo}</p>
-        </section>
-      </article>
-      </>
+              <section className={`rounded-xl border p-4 ${activeTheme.card}`}>
+                <h4 className="text-sm font-bold text-fairy-ink">실천 체크리스트</h4>
+                <ul className="mt-2 space-y-2 text-sm text-fairy-ink/90">
+                  {plan.checklist.map((item) => (
+                    <li key={item} className="rounded-lg bg-white/80 p-2">[ ] {item}</li>
+                  ))}
+                </ul>
+              </section>
+
+              <section className={`rounded-xl border p-4 ${activeTheme.card}`}>
+                <h4 className="text-sm font-bold text-fairy-ink">독서/운동 목표</h4>
+                <p className="mt-2 text-sm text-fairy-ink/90">독서: {plan.readingGoal}</p>
+                <p className="mt-2 text-sm text-fairy-ink/90">운동: {plan.exerciseGoal}</p>
+              </section>
+
+              <section className={`rounded-xl border p-4 ${activeTheme.card}`}>
+                <h4 className="text-sm font-bold text-fairy-ink">가족 프로젝트/보상 규칙</h4>
+                <p className="mt-2 text-sm text-fairy-ink/90">프로젝트: {plan.familyProject}</p>
+                <p className="mt-2 text-sm text-fairy-ink/90">보상 규칙: {plan.rewardRule}</p>
+              </section>
+            </div>
+
+            <section className={`mt-3 rounded-xl border p-4 ${activeTheme.card}`}>
+              <h4 className="text-sm font-bold text-fairy-ink">교사/학부모 메모</h4>
+              <p className="mt-2 whitespace-pre-line text-sm text-fairy-ink/90">{plan.feedbackMemo}</p>
+            </section>
+          </article>
+        </>
       )}
 
       <style jsx global>{`
