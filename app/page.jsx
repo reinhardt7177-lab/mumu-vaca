@@ -1,4 +1,4 @@
-﻿import { BookOpenCheck, LogIn, Sparkles, UserRoundPlus } from "lucide-react";
+import { LogIn, Sparkles, UserRoundPlus } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -41,16 +41,6 @@ export default function HomePage() {
               <span className="inline-flex items-center gap-2">
                 <LogIn className="h-4 w-4" />
                 교사 로그인 / 회원가입
-              </span>
-              <Sparkles className="h-4 w-4" />
-            </a>
-            <a
-              href="/teacher"
-              className="inline-flex items-center justify-between rounded-2xl bg-[#f9efd7] px-4 py-3 text-sm font-bold text-[#5f4a28] ring-1 ring-[#dfc690]"
-            >
-              <span className="inline-flex items-center gap-2">
-                <BookOpenCheck className="h-4 w-4" />
-                학생 초대링크 만들기
               </span>
               <Sparkles className="h-4 w-4" />
             </a>
