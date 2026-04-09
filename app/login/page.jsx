@@ -164,24 +164,8 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-gradient-to-r from-[#1b2a22]/45 via-[#1b2a22]/20 to-[#1b2a22]/50" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#20342a]/45 via-transparent to-transparent" />
 
-      <section className="relative mx-auto grid min-h-screen w-full max-w-7xl items-end gap-6 px-5 py-8 sm:px-8 sm:py-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-        <article className="rounded-[2rem] border border-white/40 bg-white/12 p-6 text-white shadow-[0_20px_60px_rgba(13,22,16,0.35)] backdrop-blur-md sm:p-8">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-bold tracking-wide">
-            <Sparkles className="h-3.5 w-3.5" />
-            teacher & student portal
-          </p>
-          <h1 className="mt-4 text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
-            슬기로운
-            <br />
-            방학생활 시작하기
-          </h1>
-          <p className="mt-4 max-w-xl text-sm font-medium text-white/90 sm:text-base">
-            교사는 회원가입 후 로그인하고, 학생은 선생님이 준 링크로 계정을 만들어요.
-          </p>
-          <p className="mt-3 text-xs font-semibold text-white/85 sm:text-sm">오늘의 모험은 로그인에서 시작돼요.</p>
-        </article>
-
-        <article className="rounded-[2rem] border border-[#f5e7c8] bg-[#fff8e8]/95 p-5 shadow-[0_16px_40px_rgba(36,33,24,0.3)] sm:p-6">
+      <section className="relative mx-auto flex min-h-screen w-full max-w-2xl items-center justify-center px-5 py-8 sm:px-8 sm:py-10">
+        <article className="w-full rounded-[2rem] border border-[#f5e7c8] bg-[#fff8e8]/95 p-5 shadow-[0_16px_40px_rgba(36,33,24,0.3)] sm:p-6">
           <p className="text-sm font-extrabold text-[#6d4f2a]">입장하기</p>
           <h2 className="mt-1 text-2xl font-black text-[#345334]">선생님/학생 포털</h2>
           <p className="mt-2 text-sm font-semibold text-[#5b4e3d]">교사는 로그인, 학생은 초대코드로 이동해요.</p>
