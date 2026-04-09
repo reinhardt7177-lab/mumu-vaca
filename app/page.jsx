@@ -12,7 +12,7 @@ export default function HomePage() {
       <div className="absolute inset-0 bg-gradient-to-t from-[#20342a]/45 via-transparent to-transparent" />
 
       <section className="relative mx-auto flex min-h-screen w-full max-w-lg items-center justify-center px-4 py-7 sm:px-6 sm:py-9">
-        <article className="mx-auto flex w-full max-w-[300px] aspect-[2/3] flex-col rounded-[1.2rem] border border-white/45 bg-white/16 p-4 text-white shadow-[0_20px_60px_rgba(13,22,16,0.35)] backdrop-blur-md">
+        <article className="mx-auto w-full max-w-[300px] rounded-[1.2rem] border border-white/45 bg-white/16 p-4 text-white shadow-[0_20px_60px_rgba(13,22,16,0.35)] backdrop-blur-md">
           <div>
             <h1 className="text-[2rem] font-black leading-tight">무무방학</h1>
             <p className="mt-2 text-[0.96rem] font-medium leading-snug text-white/92">
@@ -20,7 +20,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mt-auto">
+          <div className="mt-4">
             <a
               href="/login"
               className="inline-flex w-full items-center justify-between rounded-2xl bg-[#32563a] px-4 py-2.5 text-[0.95rem] font-bold text-white"
