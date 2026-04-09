@@ -1,4 +1,4 @@
-import { LogIn, Sparkles, UserRoundPlus } from "lucide-react";
+import { LogIn, Sparkles } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -40,17 +40,7 @@ export default function HomePage() {
             >
               <span className="inline-flex items-center gap-2">
                 <LogIn className="h-4 w-4" />
-                교사 로그인 / 회원가입
-              </span>
-              <Sparkles className="h-4 w-4" />
-            </a>
-            <a
-              href="/join"
-              className="inline-flex items-center justify-between rounded-2xl bg-[#e7f2ff] px-4 py-3 text-sm font-bold text-[#31557c] ring-1 ring-[#bfd8f8]"
-            >
-              <span className="inline-flex items-center gap-2">
-                <UserRoundPlus className="h-4 w-4" />
-                학생 링크로 가입하기
+                로그인 시작하기
               </span>
               <Sparkles className="h-4 w-4" />
             </a>
