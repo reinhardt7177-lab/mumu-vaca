@@ -1,12 +1,20 @@
 # Social Racing OutRun Prototype
 
-초등학교 4학년 사회 복습용 3차선 퀴즈 레이싱 프로토타입입니다.
+환경교육 체크포인트형 Neo-OutRun 레이싱 프로토타입입니다.
 
-## Run
+## Run (Next Route)
 
-- 브라우저에서 `index.html`을 바로 열어 실행
-- 또는 정적 서버 루트에서 `games/social-racing-outrun/index.html` 접근
+- 개발 서버 실행: `npm run dev`
+- 게임 접속: `/games/social-racing-outrun`
 
-## Files
+## Core Files
 
-- `index.html`: 게임 본체 (HTML + CSS + JavaScript 통합)
+- `app/games/social-racing-outrun/page.jsx`: Phaser 마운트 페이지
+- `games/social-racing-outrun/src/create-game.js`: Phaser 게임 설정/씬 결합
+- `games/social-racing-outrun/src/scenes/*`: Boot, Race, Mission, Result 씬
+- `games/social-racing-outrun/src/data/chapter-data.js`: 환경교육 챕터 데이터
+- `public/games/social-racing-outrun/assets`: CC0 자산 슬롯
+
+## Legacy Backup
+
+- `games/social-racing-outrun/index.html`: 기존 단일 HTML 버전 백업
